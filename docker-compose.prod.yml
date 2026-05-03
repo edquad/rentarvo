@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rentarvo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-rentarvo}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-rentarvo_prod}
+      POSTGRES_DB: ${DB_NAME:-rentarvo}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./create_tables.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-rentarvo} -d ${DB_NAME:-rentarvo}']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: rentarvo-api/Dockerfile
+    container_name: rentarvo-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: "4000"
+      DATABASE_URL: postgresql://${DB_USER:-rentarvo}:${DB_PASSWORD:-rentarvo_prod}@postgres:5432/${DB_NAME:-rentarvo}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: .
+      dockerfile: rentarvo-ui/Dockerfile
+    container_name: rentarvo-ui
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  uploads:

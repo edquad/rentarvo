@@ -1,0 +1,22 @@
+{
+  "name": "rentarvo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Property management, simplified.",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm -r build",
+    "build:api": "pnpm --filter rentarvo-api build",
+    "build:ui": "pnpm --filter rentarvo-ui build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:migrate": "pnpm --filter rentarvo-api prisma migrate dev",
+    "db:seed": "pnpm --filter rentarvo-api prisma db seed",
+    "db:reset": "pnpm --filter rentarvo-api prisma migrate reset",
+    "db:studio": "pnpm --filter rentarvo-api prisma studio"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
