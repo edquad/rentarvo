@@ -8,14 +8,24 @@ importers:
 
   .: {}
 
-  apps/api:
+  packages/shared:
+    dependencies:
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+
+  rentarvo-api:
     dependencies:
       '@prisma/client':
         specifier: ^5.22.0
         version: 5.22.0(prisma@5.22.0)
       '@rentarvo/shared':
         specifier: workspace:*
-        version: link:../../packages/shared
+        version: link:../packages/shared
       '@sentry/node':
         specifier: ^10.51.0
         version: 10.51.0
@@ -102,7 +112,7 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@20.19.39)
 
-  apps/web:
+  rentarvo-ui:
     dependencies:
       '@hookform/resolvers':
         specifier: ^3.9.0
@@ -204,16 +214,6 @@ importers:
       vite:
         specifier: ^5.4.0
         version: 5.4.21(@types/node@20.19.39)
-
-  packages/shared:
-    dependencies:
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
-    devDependencies:
-      typescript:
-        specifier: ^5.6.0
-        version: 5.9.3
 
 packages:
 
