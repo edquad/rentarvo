@@ -1,0 +1,557 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum UserRole {
+  OWNER
+  MANAGER
+  VIEWER
+}
+
+enum PropertyType {
+  MULTI_FAMILY
+  SINGLE_FAMILY
+  ROOM_RENTAL
+  BED_RENTAL
+  COMMERCIAL
+  OTHER
+}
+
+enum UnitType {
+  FLOOR
+  APARTMENT
+  ROOM
+  BED
+  OTHER
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDED
+  PENDING
+}
+
+enum ProgramType {
+  WHA
+  JDA
+  CHD
+  NONE
+  OTHER
+}
+
+enum ContactType {
+  CASE_WORKER
+  CONTRACTOR
+  VENDOR
+  UTILITY
+  INSURANCE_AGENT
+  ATTORNEY
+  ACCOUNTANT
+  MUNICIPAL
+  PROPERTY_MANAGER
+  OWNER_PARTNER
+  EMERGENCY
+  OTHER
+}
+
+enum CategoryKind {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CASH
+  CHECK
+  ACH
+  ZELLE
+  VENMO
+  CASHAPP
+  CARD
+  OTHER
+}
+
+enum TransactionSource {
+  MANUAL
+  CHATBOT
+  IMPORT
+}
+
+enum DocumentCategory {
+  LEASE
+  TENANT_ID
+  SECTION_8
+  INSPECTION
+  RECEIPT
+  INVOICE
+  PROPERTY_PHOTO
+  INSURANCE
+  TAX
+  ANALYSIS
+  OTHER
+}
+
+enum ChatbotEntryStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String   @map("password_hash")
+  name          String
+  role          UserRole @default(VIEWER)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  incomeTransactions  IncomeTransaction[]
+  expenseTransactions ExpenseTransaction[]
+  documents           Document[]
+  chatbotEntries      ChatbotEntry[]
+  auditLogs           AuditLog[]
+  periodLocks          PeriodLock[] @relation("PeriodLockUser")
+  propertyAnalyses    PropertyAnalysis[]
+
+  @@map("users")
+}
+
+model Entity {
+  id      String  @id @default(uuid())
+  name    String
+  ein     String?
+  address String?
+  notes   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  properties Property[]
+  periodLocks PeriodLock[]
+  lateFeeRules LateFeeRule[]
+  tenants      Tenant[]
+  documents    Document[]
+
+  @@map("entities")
+}
+
+model Property {
+  id              String       @id @default(uuid())
+  entityId        String       @map("entity_id")
+  name            String
+  addressLine1    String       @map("address_line1")
+  city            String
+  state           String
+  zip             String
+  propertyType    PropertyType @map("property_type")
+  purchasePrice   Decimal?     @map("purchase_price") @db.Decimal(12, 2)
+  purchaseDate    DateTime?    @map("purchase_date") @db.Date
+  rehabCost       Decimal?     @map("rehab_cost") @db.Decimal(12, 2)
+  currentValue    Decimal?     @map("current_value") @db.Decimal(12, 2)
+  mortgageBalance Decimal?     @map("mortgage_balance") @db.Decimal(12, 2)
+  monthlyMortgage Decimal      @default(0) @map("monthly_mortgage") @db.Decimal(12, 2)
+  monthlyTax      Decimal      @default(0) @map("monthly_tax") @db.Decimal(12, 2)
+  monthlyInsurance Decimal     @default(0) @map("monthly_insurance") @db.Decimal(12, 2)
+  monthlyHoa      Decimal?     @map("monthly_hoa") @db.Decimal(12, 2)
+  notes           String?
+  coverPhotoUrl   String?      @map("cover_photo_url")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  entity              Entity               @relation(fields: [entityId], references: [id])
+  units               Unit[]
+  incomeTransactions   IncomeTransaction[]
+  expenseTransactions  ExpenseTransaction[]
+  documents            Document[]
+  contactPropertyLinks ContactPropertyLink[]
+  propertyAnalyses     PropertyAnalysis[]
+
+  @@index([entityId])
+  @@map("properties")
+}
+
+model Unit {
+  id           String   @id @default(uuid())
+  propertyId   String   @map("property_id")
+  parentUnitId String?  @map("parent_unit_id")
+  label        String
+  unitType     UnitType @map("unit_type")
+  isRentable   Boolean  @default(false) @map("is_rentable")
+  bedrooms     Int?
+  bathrooms    Decimal? @db.Decimal(3, 1)
+  squareFeet   Int?     @map("square_feet")
+  marketRent   Decimal? @map("market_rent") @db.Decimal(12, 2)
+  isActive     Boolean  @default(true) @map("is_active")
+  notes        String?
+
+  property   Property @relation(fields: [propertyId], references: [id])
+  parentUnit Unit?    @relation("UnitHierarchy", fields: [parentUnitId], references: [id])
+  childUnits Unit[]   @relation("UnitHierarchy")
+  leases     Lease[]
+  incomeTransactions  IncomeTransaction[]
+  expenseTransactions ExpenseTransaction[]
+  documents  Document[]
+
+  @@index([propertyId])
+  @@index([parentUnitId])
+  @@index([propertyId, isRentable])
+  @@map("units")
+}
+
+model Tenant {
+  id                    String  @id @default(uuid())
+  entityId              String? @map("entity_id")
+  fullName              String  @map("full_name")
+  phone                 String?
+  email                 String?
+  emergencyContactName  String? @map("emergency_contact_name")
+  emergencyContactPhone String? @map("emergency_contact_phone")
+  idDocumentUrl         String? @map("id_document_url")
+  notes                 String?
+  isActive              Boolean @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  entity              Entity?  @relation(fields: [entityId], references: [id])
+  leases              Lease[]
+  incomeTransactions  IncomeTransaction[]
+  documents           Document[]
+  contactTenantLinks  ContactTenantLink[]
+
+  @@index([entityId])
+  @@map("tenants")
+}
+
+model Lease {
+  id                   String      @id @default(uuid())
+  unitId               String      @map("unit_id")
+  tenantId             String      @map("tenant_id")
+  startDate            DateTime    @map("start_date") @db.Date
+  endDate              DateTime?   @map("end_date") @db.Date
+  monthlyRent          Decimal     @map("monthly_rent") @db.Decimal(12, 2)
+  tenantResponsibility Decimal     @map("tenant_responsibility") @db.Decimal(12, 2)
+  programPayment       Decimal     @default(0) @map("program_payment") @db.Decimal(12, 2)
+  programType          ProgramType @default(NONE) @map("program_type")
+  petFee               Decimal     @default(0) @map("pet_fee") @db.Decimal(12, 2)
+  garageFee            Decimal     @default(0) @map("garage_fee") @db.Decimal(12, 2)
+  securityDeposit      Decimal     @default(0) @map("security_deposit") @db.Decimal(12, 2)
+  status               LeaseStatus @default(PENDING)
+  notes                String?
+
+  unit                Unit     @relation(fields: [unitId], references: [id])
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+  incomeTransactions  IncomeTransaction[]
+  documents           Document[]
+  contactLeaseLinks   ContactLeaseLink[]
+
+  @@index([unitId, status])
+  @@index([tenantId, status])
+  @@map("leases")
+}
+
+model Contact {
+  id             String      @id @default(uuid())
+  fullName       String      @map("full_name")
+  organization   String?
+  contactType    ContactType @map("contact_type")
+  roleTitle      String?     @map("role_title")
+  phone          String?
+  mobile         String?
+  email          String?
+  fax            String?
+  extension      String?
+  address        String?
+  programType    ProgramType? @map("program_type")
+  portalUrl      String?     @map("portal_url")
+  portalUsername  String?     @map("portal_username")
+  portalNotes    String?     @map("portal_notes")
+  notes          String?
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  contactPropertyLinks ContactPropertyLink[]
+  contactTenantLinks   ContactTenantLink[]
+  contactLeaseLinks    ContactLeaseLink[]
+  expenseTransactions  ExpenseTransaction[]
+  documents            Document[]
+
+  @@index([contactType])
+  @@index([isActive])
+  @@map("contacts")
+}
+
+model ContactPropertyLink {
+  id               String   @id @default(uuid())
+  contactId        String   @map("contact_id")
+  propertyId       String   @map("property_id")
+  relationshipNote String?  @map("relationship_note")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  contact  Contact  @relation(fields: [contactId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+
+  @@unique([contactId, propertyId])
+  @@map("contact_property_links")
+}
+
+model ContactTenantLink {
+  id               String   @id @default(uuid())
+  contactId        String   @map("contact_id")
+  tenantId         String   @map("tenant_id")
+  relationshipNote String?  @map("relationship_note")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id])
+  tenant  Tenant  @relation(fields: [tenantId], references: [id])
+
+  @@unique([contactId, tenantId])
+  @@map("contact_tenant_links")
+}
+
+model ContactLeaseLink {
+  id               String   @id @default(uuid())
+  contactId        String   @map("contact_id")
+  leaseId          String   @map("lease_id")
+  relationshipNote String?  @map("relationship_note")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id])
+  lease   Lease   @relation(fields: [leaseId], references: [id])
+
+  @@unique([contactId, leaseId])
+  @@map("contact_lease_links")
+}
+
+model Category {
+  id        String       @id @default(uuid())
+  name      String
+  kind      CategoryKind
+  taxBucket String?      @map("tax_bucket")
+  color     String?
+  isSystem  Boolean      @default(false) @map("is_system")
+
+  incomeTransactions  IncomeTransaction[]
+  expenseTransactions ExpenseTransaction[]
+
+  @@map("categories")
+}
+
+model IncomeTransaction {
+  id              String          @id @default(uuid())
+  propertyId      String          @map("property_id")
+  unitId          String?         @map("unit_id")
+  leaseId         String?         @map("lease_id")
+  tenantId        String?         @map("tenant_id")
+  categoryId      String          @map("category_id")
+  amount          Decimal         @db.Decimal(12, 2)
+  paymentDate     DateTime        @map("payment_date") @db.Date
+  paymentMethod   PaymentMethod?  @map("payment_method")
+  referenceNumber String?         @map("reference_number")
+  notes           String?
+  createdBy       String          @map("created_by")
+  source          TransactionSource @default(MANUAL)
+  idempotencyKey  String?         @map("idempotency_key")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id])
+  unit     Unit?    @relation(fields: [unitId], references: [id])
+  lease    Lease?   @relation(fields: [leaseId], references: [id])
+  tenant   Tenant?  @relation(fields: [tenantId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+  user     User     @relation(fields: [createdBy], references: [id])
+  documents Document[]
+
+  @@unique([createdBy, idempotencyKey], name: "uq_income_idempotency")
+  @@index([propertyId, paymentDate(sort: Desc)])
+  @@map("income_transactions")
+}
+
+model ExpenseTransaction {
+  id              String          @id @default(uuid())
+  propertyId      String          @map("property_id")
+  unitId          String?         @map("unit_id")
+  contactId       String?         @map("contact_id")
+  categoryId      String          @map("category_id")
+  amount          Decimal         @db.Decimal(12, 2)
+  expenseDate     DateTime        @map("expense_date") @db.Date
+  paymentMethod   PaymentMethod?  @map("payment_method")
+  referenceNumber String?         @map("reference_number")
+  notes           String?
+  createdBy       String          @map("created_by")
+  source          TransactionSource @default(MANUAL)
+  idempotencyKey  String?         @map("idempotency_key")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id])
+  unit     Unit?    @relation(fields: [unitId], references: [id])
+  contact  Contact? @relation(fields: [contactId], references: [id])
+  category Category @relation(fields: [categoryId], references: [id])
+  user     User     @relation(fields: [createdBy], references: [id])
+  documents Document[]
+
+  @@unique([createdBy, idempotencyKey], name: "uq_expense_idempotency")
+  @@index([propertyId, expenseDate(sort: Desc)])
+  @@map("expense_transactions")
+}
+
+model PropertyAnalysis {
+  id          String  @id @default(uuid())
+  name        String
+  propertyId  String? @map("property_id")
+  addressText String? @map("address_text")
+
+  // Q1 — Income
+  monthlyRentalIncome Decimal @default(0) @map("monthly_rental_income") @db.Decimal(12, 2)
+  petLeaseIncome      Decimal @default(0) @map("pet_lease_income") @db.Decimal(12, 2)
+  storageIncome       Decimal @default(0) @map("storage_income") @db.Decimal(12, 2)
+  miscIncome          Decimal @default(0) @map("misc_income") @db.Decimal(12, 2)
+
+  // Q2 — Expenses
+  monthlyPropertyTax   Decimal @default(0) @map("monthly_property_tax") @db.Decimal(12, 2)
+  mortgageInsurance    Decimal @default(0) @map("mortgage_insurance") @db.Decimal(12, 2)
+  homeInsurance        Decimal @default(0) @map("home_insurance") @db.Decimal(12, 2)
+  waterSewer           Decimal @default(0) @map("water_sewer") @db.Decimal(12, 2)
+  garbage              Decimal @default(0) @db.Decimal(12, 2)
+  electric             Decimal @default(0) @db.Decimal(12, 2)
+  gas                  Decimal @default(0) @db.Decimal(12, 2)
+  hoaFees              Decimal @default(0) @map("hoa_fees") @db.Decimal(12, 2)
+  lawnSnow             Decimal @default(0) @map("lawn_snow") @db.Decimal(12, 2)
+  vacancyPct           Decimal @default(0.05) @map("vacancy_pct") @db.Decimal(5, 4)
+  repairsPct           Decimal @default(0.05) @map("repairs_pct") @db.Decimal(5, 4)
+  capexPct             Decimal @default(0.05) @map("capex_pct") @db.Decimal(5, 4)
+  propManagementPct    Decimal @default(0) @map("prop_management_pct") @db.Decimal(5, 4)
+
+  // Q4 — Investment
+  houseCost            Decimal @default(0) @map("house_cost") @db.Decimal(12, 2)
+  downPaymentPct       Decimal @default(0.25) @map("down_payment_pct") @db.Decimal(5, 4)
+  closingCosts         Decimal @default(0) @map("closing_costs") @db.Decimal(12, 2)
+  rehabBudget          Decimal @default(0) @map("rehab_budget") @db.Decimal(12, 2)
+  miscOtherInvestment  Decimal @default(0) @map("misc_other_investment") @db.Decimal(12, 2)
+
+  assumptionsNotes String? @map("assumptions_notes")
+  createdBy        String  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  property  Property? @relation(fields: [propertyId], references: [id])
+  user      User      @relation(fields: [createdBy], references: [id])
+  documents Document[]
+
+  @@index([propertyId])
+  @@index([createdBy])
+  @@map("property_analyses")
+}
+
+model Document {
+  id                   String           @id @default(uuid())
+  entityId             String?          @map("entity_id")
+  propertyId           String?          @map("property_id")
+  unitId               String?          @map("unit_id")
+  tenantId             String?          @map("tenant_id")
+  leaseId              String?          @map("lease_id")
+  contactId            String?          @map("contact_id")
+  incomeTransactionId  String?          @map("income_transaction_id")
+  expenseTransactionId String?          @map("expense_transaction_id")
+  analysisId           String?          @map("analysis_id")
+  category             DocumentCategory
+  originalFilename     String           @map("original_filename")
+  storageKey           String           @map("storage_key")
+  mimeType             String           @map("mime_type")
+  sizeBytes            Int              @map("size_bytes")
+  uploadedBy           String           @map("uploaded_by")
+  uploadedAt           DateTime         @default(now()) @map("uploaded_at")
+
+  entity             Entity?             @relation(fields: [entityId], references: [id])
+  property           Property?           @relation(fields: [propertyId], references: [id])
+  unit               Unit?               @relation(fields: [unitId], references: [id])
+  tenant             Tenant?             @relation(fields: [tenantId], references: [id])
+  lease              Lease?              @relation(fields: [leaseId], references: [id])
+  contact            Contact?            @relation(fields: [contactId], references: [id])
+  incomeTransaction  IncomeTransaction?  @relation(fields: [incomeTransactionId], references: [id])
+  expenseTransaction ExpenseTransaction? @relation(fields: [expenseTransactionId], references: [id])
+  analysis           PropertyAnalysis?   @relation(fields: [analysisId], references: [id])
+  user               User                @relation(fields: [uploadedBy], references: [id])
+
+  @@index([entityId])
+  @@index([propertyId])
+  @@index([tenantId])
+  @@index([category])
+  @@index([contactId])
+  @@map("documents")
+}
+
+model ChatbotEntry {
+  id                String             @id @default(uuid())
+  userId            String             @map("user_id")
+  rawText           String             @map("raw_text")
+  parsedJson        Json?              @map("parsed_json")
+  confidence        Float?
+  status            ChatbotEntryStatus @default(PENDING)
+  resultingIncomeId String?            @map("resulting_income_id")
+  resultingExpenseId String?           @map("resulting_expense_id")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("chatbot_entries")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  beforeJson Json?    @map("before_json")
+  afterJson  Json?    @map("after_json")
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model PeriodLock {
+  id         String   @id @default(uuid())
+  entityId   String   @map("entity_id")
+  year       Int
+  month      Int
+  lockedBy   String   @map("locked_by")
+  lockedAt   DateTime @default(now()) @map("locked_at")
+  reason     String?
+
+  entity Entity @relation(fields: [entityId], references: [id])
+  user   User   @relation("PeriodLockUser", fields: [lockedBy], references: [id])
+
+  @@unique([entityId, year, month])
+  @@map("period_locks")
+}
+
+model LateFeeRule {
+  id                String   @id @default(uuid())
+  entityId          String   @map("entity_id")
+  gracePeriodDays   Int      @default(5) @map("grace_period_days")
+  feeType           String   @default("FLAT") @map("fee_type") // FLAT or PERCENT
+  feeAmount         Decimal  @default(50) @map("fee_amount") @db.Decimal(12, 2)
+  maxFeeAmount      Decimal? @map("max_fee_amount") @db.Decimal(12, 2)
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  entity Entity @relation(fields: [entityId], references: [id])
+
+  @@unique([entityId])
+  @@map("late_fee_rules")
+}
