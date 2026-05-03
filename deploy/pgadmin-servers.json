@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Rentarvo (Live)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "rentarvo",
+      "Username": "rentarvo",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}
