@@ -11,10 +11,8 @@ RUN npm install -g pnpm@10
 
 RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client (DATABASE_URL not required for v5 generate)
 RUN cd rentarvo-api && pnpm exec prisma generate
 
-# Build TypeScript
 RUN cd rentarvo-api && pnpm exec tsc
 
 # Production stage
@@ -29,13 +27,12 @@ COPY packages ./packages
 COPY rentarvo-api/package.json ./rentarvo-api/package.json
 COPY rentarvo-api/prisma ./rentarvo-api/prisma
 
-RUN pnpm install --frozen-lockfile --prod
+# Install full dependencies (we need tsx for running seed and prisma CLI)
+RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client in prod image
-RUN cd rentarvo-api && pnpm exec prisma generate
-
-# Copy built app from builder
+# Copy built app and generated Prisma client from builder
 COPY --from=builder /app/rentarvo-api/dist ./rentarvo-api/dist
+COPY --from=builder /app/node_modules/.pnpm /app/node_modules/.pnpm
 
 WORKDIR /app/rentarvo-api
 
