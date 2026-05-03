@@ -3,6 +3,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+RUN apk add --no-cache openssl
+
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY packages ./packages
 COPY rentarvo-api ./rentarvo-api
@@ -19,6 +21,8 @@ RUN cd rentarvo-api && pnpm exec tsc
 FROM node:20-alpine
 
 WORKDIR /app
+
+RUN apk add --no-cache openssl
 
 RUN npm install -g pnpm@10
 
