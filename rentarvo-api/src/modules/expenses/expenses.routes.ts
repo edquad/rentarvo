@@ -25,9 +25,11 @@ const createExpenseSchema = z.object({
 
 // List
 expensesRouter.get('/', async (req: Request, res: Response) => {
-  const { propertyId, from, to, categoryId, contactId, page = '1', limit = '50' } = req.query;
+  const { propertyId, from, to, categoryId, contactId, search, page = '1', limit = '50' } = req.query;
   const entityId = getScopeEntityId(req);
-  const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+  const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 50));
+  const skip = (pageNum - 1) * limitNum;
 
   let where: any = {};
   if (propertyId) where.propertyId = propertyId;
@@ -38,6 +40,20 @@ expensesRouter.get('/', async (req: Request, res: Response) => {
     where.expenseDate = {};
     if (from) where.expenseDate.gte = new Date(from as string);
     if (to) where.expenseDate.lte = new Date(to as string);
+  }
+  if (typeof search === 'string' && search.trim()) {
+    const q = search.trim();
+    const searchFilter = {
+      OR: [
+        { property: { name: { contains: q, mode: 'insensitive' as const } } },
+        { unit: { label: { contains: q, mode: 'insensitive' as const } } },
+        { category: { name: { contains: q, mode: 'insensitive' as const } } },
+        { notes: { contains: q, mode: 'insensitive' as const } },
+        { contact: { fullName: { contains: q, mode: 'insensitive' as const } } },
+        { contact: { organization: { contains: q, mode: 'insensitive' as const } } },
+      ],
+    };
+    where = Object.keys(where).length > 0 ? { AND: [where, searchFilter] } : searchFilter;
   }
 
   const [transactions, total] = await Promise.all([
@@ -51,12 +67,12 @@ expensesRouter.get('/', async (req: Request, res: Response) => {
       },
       orderBy: { expenseDate: 'desc' },
       skip,
-      take: parseInt(limit as string),
+      take: limitNum,
     }),
     prisma.expenseTransaction.count({ where }),
   ]);
 
-  res.json({ data: transactions, total, page: parseInt(page as string), limit: parseInt(limit as string) });
+  res.json({ data: transactions, total, page: pageNum, limit: limitNum });
 });
 
 // Get by ID

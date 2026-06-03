@@ -54,7 +54,11 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
       res.status(409).json({ error: { code: 'CONFLICT', message: 'A record with that value already exists' } });
       return;
     }
-    res.status(400).json({ error: { code: 'DATABASE_ERROR', message: 'Invalid request' } });
+    const devHint =
+      process.env.NODE_ENV === 'development' && err.message.includes('does not exist')
+        ? ' Database schema may be out of date — run: npx prisma migrate deploy (or rentarvo-api/prisma/fix-documents-local.sql).'
+        : '';
+    res.status(400).json({ error: { code: 'DATABASE_ERROR', message: `Invalid request.${devHint}` } });
     return;
   }
 

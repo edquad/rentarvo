@@ -86,6 +86,7 @@ enum TransactionSource {
 
 enum DocumentCategory {
   LEASE
+  BILL
   TENANT_ID
   SECTION_8
   INSPECTION
@@ -466,6 +467,7 @@ model Document {
   expenseTransactionId String?          @map("expense_transaction_id")
   analysisId           String?          @map("analysis_id")
   category             DocumentCategory
+  description          String?          @map("description")
   originalFilename     String           @map("original_filename")
   storageKey           String           @map("storage_key")
   mimeType             String           @map("mime_type")

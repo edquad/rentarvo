@@ -1,18 +1,39 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { useEntityStore } from '../../lib/entityStore';
 import { formatMoney, formatDate } from '../../lib/format';
 import { toast } from '../../components/Toaster';
-import { Plus, DollarSign, Search, CheckSquare, Trash2, Pencil, Filter } from 'lucide-react';
+import { Plus, DollarSign, Search, CheckSquare, Trash2, Pencil, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { RecordIncomeModal } from './RecordIncomeModal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
+
+const PAGE_SIZE = 25;
+
+function buildIncomeQuery(page: number, filters: {
+  search: string;
+  filterCategory: string;
+  dateFrom: string;
+  dateTo: string;
+}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(PAGE_SIZE),
+  });
+  if (filters.search.trim()) params.set('search', filters.search.trim());
+  if (filters.filterCategory) params.set('categoryId', filters.filterCategory);
+  if (filters.dateFrom) params.set('from', filters.dateFrom);
+  if (filters.dateTo) params.set('to', filters.dateTo);
+  return `/income?${params.toString()}`;
+}
 
 export function IncomeLedgerPage() {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editData, setEditData] = useState<any>(null);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -20,11 +41,25 @@ export function IncomeLedgerPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const selectedEntityId = useEntityStore((s) => s.selectedEntityId);
-  const entityParam = selectedEntityId ? `&entityId=${selectedEntityId}` : '';
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['income', selectedEntityId],
-    queryFn: () => api.get<{ data: any[]; total: number }>(`/income?limit=100${entityParam}`),
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+    setSelected(new Set());
+  }, [selectedEntityId, debouncedSearch, filterCategory, dateFrom, dateTo]);
+
+  const filters = { search: debouncedSearch, filterCategory, dateFrom, dateTo };
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['income', selectedEntityId, page, filters],
+    queryFn: () => api.get<{ data: any[]; total: number; page: number; limit: number }>(
+      buildIncomeQuery(page, filters),
+    ),
+    placeholderData: (prev) => prev,
   });
 
   const { data: categories = [] } = useQuery({
@@ -33,28 +68,16 @@ export function IncomeLedgerPage() {
   });
 
   const transactions = data?.data || [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const pageEnd = Math.min(page * PAGE_SIZE, total);
 
-  const filtered = useMemo(() => {
-    let result = transactions;
-    if (search) {
-      const s = search.toLowerCase();
-      result = result.filter((t: any) =>
-        t.tenant?.fullName?.toLowerCase().includes(s) ||
-        t.property?.name?.toLowerCase().includes(s) ||
-        t.category?.name?.toLowerCase().includes(s)
-      );
-    }
-    if (filterCategory) {
-      result = result.filter((t: any) => t.categoryId === filterCategory);
-    }
-    if (dateFrom) {
-      result = result.filter((t: any) => t.paymentDate >= dateFrom);
-    }
-    if (dateTo) {
-      result = result.filter((t: any) => t.paymentDate <= dateTo);
-    }
-    return result;
-  }, [transactions, search, filterCategory, dateFrom, dateTo]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const filtered = transactions;
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -213,12 +236,12 @@ export function IncomeLedgerPage() {
         <div className="space-y-3">
           {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-gray-200 rounded-xl animate-pulse" />)}
         </div>
-      ) : transactions.length === 0 ? (
+      ) : total === 0 && !debouncedSearch && !filterCategory && !dateFrom && !dateTo ? (
         <div className="text-center py-12">
           <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No income recorded yet.</p>
         </div>
-      ) : filtered.length === 0 ? (
+      ) : total === 0 ? (
         <div className="text-center py-12">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No transactions match your filters.</p>
@@ -320,6 +343,38 @@ export function IncomeLedgerPage() {
               </div>
             ))}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50">
+              <p className="text-sm text-gray-500">
+                Showing {pageStart}–{pageEnd} of {total} transactions
+                {isFetching && !isLoading && (
+                  <span className="ml-2 text-gray-400">(loading…)</span>
+                )}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1 || isFetching}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border rounded-lg text-sm bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} /> Previous
+                </button>
+                <span className="text-sm text-gray-600 tabular-nums px-1">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages || isFetching}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border rounded-lg text-sm bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

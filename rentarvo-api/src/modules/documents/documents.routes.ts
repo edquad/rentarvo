@@ -9,7 +9,7 @@ import { getScopeEntityId, requireEntityScope } from '../../lib/entityScope.js';
 
 export const documentsRouter = Router();
 documentsRouter.use(authenticate);
-documentsRouter.use('/:id', requireEntityScope('document', 'Document'));
+const documentScope = requireEntityScope('document', 'Document');
 
 const optStr = (schema: z.ZodTypeAny) => z.preprocess((v) => (v === '' ? undefined : v), schema);
 
@@ -30,9 +30,10 @@ const upload = multer({
 
 const uploadMetaSchema = z.object({
   category: z.enum([
-    'LEASE', 'TENANT_ID', 'SECTION_8', 'INSPECTION', 'RECEIPT', 'INVOICE',
+    'LEASE', 'BILL', 'TENANT_ID', 'SECTION_8', 'INSPECTION', 'RECEIPT', 'INVOICE',
     'PROPERTY_PHOTO', 'INSURANCE', 'TAX', 'ANALYSIS', 'OTHER',
   ]),
+  description: optStr(z.string().trim().max(500).optional()),
   propertyId: optStr(z.string().uuid().optional()),
   unitId: optStr(z.string().uuid().optional()),
   tenantId: optStr(z.string().uuid().optional()),
@@ -50,12 +51,19 @@ documentsRouter.post('/', upload.single('file'), async (req: Request, res: Respo
   }
 
   const meta = uploadMetaSchema.parse(req.body);
-  const storageKey = await storage.save(req.file.originalname, req.file.buffer);
+  if (meta.category === 'OTHER' && !meta.description?.trim()) {
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Description is required when category is Other' },
+    });
+    return;
+  }
+  const storageKey = await storage.save(req.file.originalname, req.file.buffer, req.file.mimetype);
 
   const entityId = getScopeEntityId(req) || undefined;
   const doc = await prisma.document.create({
     data: {
       ...meta,
+      description: meta.description?.trim() || null,
       entityId,
       originalFilename: req.file.originalname,
       storageKey,
@@ -92,7 +100,13 @@ documentsRouter.get('/', async (req: Request, res: Response) => {
   const skip = (Math.max(parseInt(page as string, 10) || 1, 1) - 1) * take;
 
   const [docs, total] = await Promise.all([
-    prisma.document.findMany({ where, orderBy: { uploadedAt: 'desc' }, take, skip }),
+    prisma.document.findMany({
+      where,
+      orderBy: { uploadedAt: 'desc' },
+      take,
+      skip,
+      include: { property: { select: { id: true, name: true } } },
+    }),
     prisma.document.count({ where }),
   ]);
 
@@ -100,7 +114,7 @@ documentsRouter.get('/', async (req: Request, res: Response) => {
 });
 
 // Download
-documentsRouter.get('/:id/download', async (req: Request, res: Response) => {
+documentsRouter.get('/:id/download', documentScope, async (req: Request, res: Response) => {
   const doc = await prisma.document.findUnique({ where: { id: req.params.id } });
   if (!doc) {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found' } });
@@ -113,7 +127,7 @@ documentsRouter.get('/:id/download', async (req: Request, res: Response) => {
 });
 
 // Delete
-documentsRouter.delete('/:id', async (req: Request, res: Response) => {
+documentsRouter.delete('/:id', documentScope, async (req: Request, res: Response) => {
   const doc = await prisma.document.findUnique({ where: { id: req.params.id } });
   if (!doc) {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Document not found' } });

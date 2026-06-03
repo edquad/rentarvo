@@ -14,7 +14,7 @@ export const ContactType = z.enum([
 export const PaymentMethod = z.enum(['CASH', 'CHECK', 'ACH', 'ZELLE', 'VENMO', 'CASHAPP', 'CARD', 'OTHER']);
 export const CategoryKind = z.enum(['INCOME', 'EXPENSE']);
 export const DocumentCategory = z.enum([
-  'LEASE', 'TENANT_ID', 'SECTION_8', 'INSPECTION', 'RECEIPT', 'INVOICE',
+  'LEASE', 'BILL', 'TENANT_ID', 'SECTION_8', 'INSPECTION', 'RECEIPT', 'INVOICE',
   'PROPERTY_PHOTO', 'INSURANCE', 'TAX', 'ANALYSIS', 'OTHER',
 ]);
 

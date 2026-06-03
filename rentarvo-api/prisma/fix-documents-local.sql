@@ -1,0 +1,2 @@
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TYPE "DocumentCategory" ADD VALUE IF NOT EXISTS 'BILL';

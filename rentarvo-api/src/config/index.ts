@@ -14,9 +14,17 @@ export const config = {
     secret: process.env.JWT_SECRET || 'dev-secret-replace-me',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
-  upload: {
-    dir: process.env.UPLOAD_DIR || './uploads',
+  storage: {
+    driver: (process.env.STORAGE_DRIVER || 'local') as 'local' | 's3',
+    localDir: process.env.UPLOAD_DIR || './uploads',
     maxMb: parseInt(process.env.MAX_UPLOAD_MB || '25', 10),
+    s3: {
+      bucket: process.env.S3_BUCKET || '',
+      region: process.env.AWS_REGION || process.env.S3_REGION || 'us-east-1',
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+      prefix: process.env.S3_PREFIX || 'rentarvo',
+    },
   },
   llm: {
     provider: process.env.LLM_PROVIDER || 'openai',
