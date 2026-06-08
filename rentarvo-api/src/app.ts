@@ -24,6 +24,9 @@ import { reportsRouter } from './modules/reports/reports.routes.js';
 
 export const app = express();
 
+// Behind nginx in production (docker-compose / Lightsail)
+app.set('trust proxy', 1);
+
 // Global middleware
 app.use(helmet());
 app.use(cors({ origin: config.cors.origin, credentials: true }));
