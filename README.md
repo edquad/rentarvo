@@ -112,18 +112,18 @@ pnpm dev              # Start API & UI dev servers
 
 **Production (AWS):**
 ```bash
-# Automated via GitHub Actions CI/CD
-# Push to main branch → automatic build, test, and deploy
+# Deploy: merge a pull request into main (direct push to main is blocked)
+# See CONTRIBUTING.md for branch workflow
 
-# Manual deployment
-export AWS_ACCOUNT_ID=your_account_id
-./deploy/deploy-to-aws.sh
+# Manual deployment (Lightsail)
+./deploy/lightsail-build.sh
 ```
 
 ### Deployment Features
 
 - ✅ **Separate Dockerfiles** for API and UI
-- ✅ **GitHub Actions CI/CD** with automatic deployment on main branch
+- ✅ **GitHub Actions CI/CD** — deploy runs when PRs are merged to `main`
+- ✅ **Branch protection** — use feature branches + pull requests ([CONTRIBUTING.md](./CONTRIBUTING.md))
 - ✅ **AWS ECS** for containerized services
 - ✅ **AWS RDS** for managed PostgreSQL
 - ✅ **AWS S3 + CloudFront** for static UI assets (optional)
