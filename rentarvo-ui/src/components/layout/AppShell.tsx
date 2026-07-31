@@ -34,7 +34,7 @@ const navItems = [
   { path: '/documents', label: 'Documents', icon: FolderOpen },
   { path: '/contacts', label: 'Contacts', icon: Contact },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
-  { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
+  // { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
