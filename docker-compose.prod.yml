@@ -36,11 +36,9 @@ services:
       S3_PREFIX: ${S3_PREFIX:-rentarvo}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      BEDROCK_REGION: ${BEDROCK_REGION:-us-east-1}
-      BEDROCK_MODEL: ${BEDROCK_MODEL:-amazon.nova-micro-v1:0}
-      BEDROCK_ACCESS_KEY_ID: ${BEDROCK_ACCESS_KEY_ID:-}
-      BEDROCK_SECRET_ACCESS_KEY: ${BEDROCK_SECRET_ACCESS_KEY:-}
-      BEDROCK_MONTHLY_LIMIT: ${BEDROCK_MONTHLY_LIMIT:-11}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gemini-2.0-flash-lite}
+      AI_MONTHLY_LIMIT: ${AI_MONTHLY_LIMIT:-11}
     volumes:
       - uploads:/app/uploads
     depends_on:

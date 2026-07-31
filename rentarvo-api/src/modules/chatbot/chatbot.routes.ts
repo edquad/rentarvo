@@ -93,8 +93,8 @@ chatbotRouter.post('/ask', chatLimiter, async (req: Request, res: Response) => {
       answer = err.message;
     } else if (err.message?.includes('timeout') || err.message?.includes('statement_timeout')) {
       answer = 'That query took too long. Try asking something more specific.';
-    } else if (err.name === 'AccessDeniedException' || err.message?.includes('AccessDenied')) {
-      answer = 'AI service is not configured yet. Please ask the admin to enable AWS Bedrock.';
+    } else if (err.message?.includes('GEMINI_API_KEY') || err.message?.includes('API key')) {
+      answer = 'AI service is not configured yet. Please ask the admin to set the GEMINI_API_KEY.';
     } else {
       answer = 'Something went wrong while looking that up. Try rephrasing your question.';
     }

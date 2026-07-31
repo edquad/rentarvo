@@ -37,4 +37,8 @@ export const config = {
     accessKeyId: process.env.BEDROCK_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY || '',
   },
+  ai: {
+    geminiApiKey: process.env.GEMINI_API_KEY || '',
+    model: process.env.AI_MODEL || 'gemini-2.0-flash-lite',
+  },
 };
