@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { prisma } from '../../lib/prisma.js';
-import { askBedrock } from '../../lib/bedrock.js';
+import { askBedrock, getUsageStats, CostLimitError } from '../../lib/bedrock.js';
 import { authenticate } from '../../middleware/auth.js';
 import { SYSTEM_PROMPT, FORMAT_PROMPT } from './chatbot.prompt.js';
 import pino from 'pino';
@@ -89,7 +89,9 @@ chatbotRouter.post('/ask', chatLimiter, async (req: Request, res: Response) => {
     }
   } catch (err: any) {
     logger.error({ err, question }, 'Chatbot error');
-    if (err.message?.includes('timeout') || err.message?.includes('statement_timeout')) {
+    if (err instanceof CostLimitError) {
+      answer = err.message;
+    } else if (err.message?.includes('timeout') || err.message?.includes('statement_timeout')) {
       answer = 'That query took too long. Try asking something more specific.';
     } else if (err.name === 'AccessDeniedException' || err.message?.includes('AccessDenied')) {
       answer = 'AI service is not configured yet. Please ask the admin to enable AWS Bedrock.';
@@ -113,6 +115,10 @@ chatbotRouter.post('/ask', chatLimiter, async (req: Request, res: Response) => {
     data: rows.length > 0 ? { columns, rows } : null,
     question,
   });
+});
+
+chatbotRouter.get('/usage', async (_req: Request, res: Response) => {
+  res.json(getUsageStats());
 });
 
 chatbotRouter.get('/history', async (req: Request, res: Response) => {

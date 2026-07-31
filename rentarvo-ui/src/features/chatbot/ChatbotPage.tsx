@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-import { Send, Bot, User, Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, MessageSquare, Sparkles, AlertTriangle } from 'lucide-react';
 
 interface ChatMessage {
   id: string;
@@ -30,6 +30,12 @@ export function ChatbotPage() {
     queryKey: ['chatbot-history'],
     queryFn: () => api.get<any[]>('/chatbot/history?limit=20'),
     staleTime: 60_000,
+  });
+
+  const { data: usage } = useQuery({
+    queryKey: ['chatbot-usage'],
+    queryFn: () => api.get<{ month: string; estimatedCost: number; limitUsd: number; paused: boolean }>('/chatbot/usage'),
+    refetchInterval: 30_000,
   });
 
   useEffect(() => {
@@ -90,7 +96,7 @@ export function ChatbotPage() {
 
   const handleSend = (text?: string) => {
     const question = (text || input).trim();
-    if (!question || askMutation.isPending) return;
+    if (!question || askMutation.isPending || usage?.paused) return;
 
     setMessages((prev) => [
       ...prev,
@@ -117,12 +123,28 @@ export function ChatbotPage() {
           <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center">
             <Sparkles size={18} className="text-brand-700" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-lg font-semibold">Rentarvo Assistant</h1>
             <p className="text-xs text-gray-500">Ask anything about your properties, tenants, and finances</p>
           </div>
+          {usage && (
+            <div className={`text-xs px-2.5 py-1 rounded-full whitespace-nowrap ${
+              usage.paused ? 'bg-red-100 text-red-700' : usage.estimatedCost > usage.limitUsd * 0.8 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
+            }`}>
+              ${usage.estimatedCost.toFixed(2)} / ${usage.limitUsd}
+            </div>
+          )}
         </div>
       </div>
+
+      {usage?.paused && (
+        <div className="px-4 lg:px-6 py-2 bg-red-50 border-b border-red-200 shrink-0">
+          <div className="flex items-center gap-2 max-w-4xl mx-auto text-sm text-red-700">
+            <AlertTriangle size={16} />
+            <span>AI chatbot paused — monthly cost limit of ${usage.limitUsd} reached. Resets next month.</span>
+          </div>
+        </div>
+      )}
 
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
@@ -239,13 +261,13 @@ export function ChatbotPage() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask about tenants, rent, expenses..."
-            disabled={askMutation.isPending}
+            disabled={askMutation.isPending || usage?.paused}
             className="flex-1 px-4 py-3 border rounded-xl bg-white focus:ring-2 focus:ring-brand-500 outline-none text-sm disabled:opacity-50"
           />
           <button
             type="button"
             onClick={() => handleSend()}
-            disabled={!input.trim() || askMutation.isPending}
+            disabled={!input.trim() || askMutation.isPending || usage?.paused}
             className="px-4 py-3 bg-brand-700 text-white rounded-xl hover:bg-brand-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Send size={18} />

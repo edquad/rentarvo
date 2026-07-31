@@ -33,6 +33,8 @@ export const config = {
   },
   bedrock: {
     region: process.env.BEDROCK_REGION || process.env.AWS_REGION || 'us-east-1',
-    model: process.env.BEDROCK_MODEL || 'anthropic.claude-3-haiku-20240307-v1:0',
+    model: process.env.BEDROCK_MODEL || 'amazon.nova-micro-v1:0',
+    accessKeyId: process.env.BEDROCK_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY || '',
   },
 };
