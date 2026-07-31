@@ -1,41 +1,34 @@
-import {
-  BedrockRuntimeClient,
-  ConverseCommand,
-  type Message,
-  type SystemContentBlock,
-} from '@aws-sdk/client-bedrock-runtime';
+import { GoogleGenAI } from '@google/genai';
 import { config } from '../config/index.js';
 import pino from 'pino';
 
-const logger = pino({ name: 'bedrock' });
+const logger = pino({ name: 'ai-provider' });
 
-let client: BedrockRuntimeClient | null = null;
+let gemini: GoogleGenAI | null = null;
 
-function getClient(): BedrockRuntimeClient {
-  if (!client) {
-    const opts: Record<string, any> = { region: config.bedrock.region };
-    const ak = config.bedrock.accessKeyId || config.storage.s3.accessKeyId;
-    const sk = config.bedrock.secretAccessKey || config.storage.s3.secretAccessKey;
-    if (ak && sk) {
-      opts.credentials = { accessKeyId: ak, secretAccessKey: sk };
-    }
-    client = new BedrockRuntimeClient(opts);
+function getGemini(): GoogleGenAI {
+  if (!gemini) {
+    const apiKey = config.ai.geminiApiKey;
+    if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
+    gemini = new GoogleGenAI({ apiKey });
   }
-  return client;
+  return gemini;
 }
 
 // ─── Monthly cost tracking ──────────────────────────────────────
-const COST_LIMIT_USD = parseFloat(process.env.BEDROCK_MONTHLY_LIMIT || '11');
-const INPUT_PRICE_PER_1M = 0.25;
-const OUTPUT_PRICE_PER_1M = 1.25;
+const COST_LIMIT_USD = parseFloat(process.env.AI_MONTHLY_LIMIT || '11');
+// Gemini 2.0 Flash Lite: $0.015/1M input, $0.06/1M output (extremely cheap)
+const INPUT_PRICE_PER_1M = 0.075;
+const OUTPUT_PRICE_PER_1M = 0.30;
 
 interface MonthlyUsage {
   month: string;
   inputTokens: number;
   outputTokens: number;
+  requests: number;
 }
 
-let usage: MonthlyUsage = { month: currentMonth(), inputTokens: 0, outputTokens: 0 };
+let usage: MonthlyUsage = { month: currentMonth(), inputTokens: 0, outputTokens: 0, requests: 0 };
 
 function currentMonth(): string {
   const d = new Date();
@@ -51,7 +44,7 @@ function resetIfNewMonth(): void {
   const m = currentMonth();
   if (usage.month !== m) {
     logger.info({ oldMonth: usage.month, cost: estimatedCostUsd().toFixed(4) }, 'Resetting monthly usage');
-    usage = { month: m, inputTokens: 0, outputTokens: 0 };
+    usage = { month: m, inputTokens: 0, outputTokens: 0, requests: 0 };
   }
 }
 
@@ -61,6 +54,7 @@ export function getUsageStats() {
     month: usage.month,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
+    requests: usage.requests,
     estimatedCost: parseFloat(estimatedCostUsd().toFixed(4)),
     limitUsd: COST_LIMIT_USD,
     paused: estimatedCostUsd() >= COST_LIMIT_USD,
@@ -74,7 +68,6 @@ export class CostLimitError extends Error {
   }
 }
 
-// ─── Converse API (works with both Anthropic & Amazon models) ───
 export async function askBedrock(
   systemPrompt: string,
   userMessage: string,
@@ -86,28 +79,27 @@ export async function askBedrock(
     throw new CostLimitError(cost, COST_LIMIT_USD);
   }
 
-  const system: SystemContentBlock[] = [{ text: systemPrompt }];
-  const messages: Message[] = [{ role: 'user', content: [{ text: userMessage }] }];
-
-  const command = new ConverseCommand({
-    modelId: config.bedrock.model,
-    system,
-    messages,
-    inferenceConfig: { maxTokens: 2048, temperature: 0 },
+  const ai = getGemini();
+  const response = await ai.models.generateContent({
+    model: config.ai.model,
+    contents: userMessage,
+    config: {
+      systemInstruction: systemPrompt,
+      temperature: 0,
+      maxOutputTokens: 2048,
+    },
   });
 
-  const response = await getClient().send(command);
-
-  const inTok = response.usage?.inputTokens ?? 0;
-  const outTok = response.usage?.outputTokens ?? 0;
+  const inTok = response.usageMetadata?.promptTokenCount ?? 0;
+  const outTok = response.usageMetadata?.candidatesTokenCount ?? 0;
   usage.inputTokens += inTok;
   usage.outputTokens += outTok;
+  usage.requests += 1;
 
   const newCost = estimatedCostUsd();
   if (newCost >= COST_LIMIT_USD * 0.9) {
     logger.warn({ cost: newCost.toFixed(4), limit: COST_LIMIT_USD }, 'Approaching monthly cost limit');
   }
 
-  const text = response.output?.message?.content?.[0]?.text ?? '';
-  return text;
+  return response.text ?? '';
 }
