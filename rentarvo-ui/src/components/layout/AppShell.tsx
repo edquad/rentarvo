@@ -21,6 +21,7 @@ import {
   Plus,
   LogOut,
   ChevronLeft,
+  MessageSquare,
 } from 'lucide-react';
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { path: '/documents', label: 'Documents', icon: FolderOpen },
   { path: '/contacts', label: 'Contacts', icon: Contact },
   { path: '/reports', label: 'Reports', icon: BarChart3 },
+  { path: '/chat', label: 'AI Assistant', icon: MessageSquare },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 

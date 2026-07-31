@@ -19,6 +19,7 @@ import { IncomeLedgerPage } from './features/income/IncomeLedgerPage';
 import { ExpenseLedgerPage } from './features/expenses/ExpenseLedgerPage';
 import { ContactsPage } from './features/contacts/ContactsPage';
 import { PlaceholderPage } from './components/PlaceholderPage';
+import { ChatbotPage } from './features/chatbot/ChatbotPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DocumentsPage } from './features/documents/DocumentsPage';
 import { SettingsPage } from './features/settings/SettingsPage';
@@ -73,7 +74,7 @@ export default function App() {
               <Route path="contacts" element={<ErrorBoundary><ContactsPage /></ErrorBoundary>} />
               <Route path="analyses" element={<PlaceholderPage title="4-Square Analysis" />} />
               <Route path="reports" element={<ErrorBoundary><ScheduleEPage /></ErrorBoundary>} />
-              <Route path="chat" element={<PlaceholderPage title="Chatbot" />} />
+              <Route path="chat" element={<ErrorBoundary><ChatbotPage /></ErrorBoundary>} />
               <Route path="import" element={<PlaceholderPage title="Excel Import" />} />
               <Route path="settings" element={<ErrorBoundary><SettingsPage /></ErrorBoundary>} />
               <Route path="*" element={<NotFoundPage />} />
