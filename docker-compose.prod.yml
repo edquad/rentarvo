@@ -36,6 +36,8 @@ services:
       S3_PREFIX: ${S3_PREFIX:-rentarvo}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      BEDROCK_REGION: ${BEDROCK_REGION:-us-east-1}
+      BEDROCK_MODEL: ${BEDROCK_MODEL:-anthropic.claude-3-haiku-20240307-v1:0}
     volumes:
       - uploads:/app/uploads
     depends_on:

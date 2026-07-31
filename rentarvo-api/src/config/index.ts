@@ -31,4 +31,8 @@ export const config = {
     openaiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   },
+  bedrock: {
+    region: process.env.BEDROCK_REGION || process.env.AWS_REGION || 'us-east-1',
+    model: process.env.BEDROCK_MODEL || 'anthropic.claude-3-haiku-20240307-v1:0',
+  },
 };
