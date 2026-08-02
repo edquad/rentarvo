@@ -9,6 +9,7 @@ import { DashboardPage } from './features/dashboard/DashboardPage';
 import { PropertiesPage } from './features/properties/PropertiesPage';
 import { PropertyFormPage } from './features/properties/PropertyFormPage';
 import { PropertyDetailPage } from './features/properties/PropertyDetailPage';
+import { PropertyInfoPage } from './features/properties/PropertyInfoPage';
 import { TenantsPage } from './features/tenants/TenantsPage';
 import { TenantFormPage } from './features/tenants/TenantFormPage';
 import { TenantDetailPage } from './features/tenants/TenantDetailPage';
@@ -62,6 +63,7 @@ export default function App() {
               <Route path="properties/new" element={<ErrorBoundary><PropertyFormPage /></ErrorBoundary>} />
               <Route path="properties/:id/edit" element={<ErrorBoundary><PropertyFormPage /></ErrorBoundary>} />
               <Route path="properties/:id" element={<ErrorBoundary><PropertyDetailPage /></ErrorBoundary>} />
+              <Route path="properties/:id/info" element={<ErrorBoundary><PropertyInfoPage /></ErrorBoundary>} />
               <Route path="tenants" element={<ErrorBoundary><TenantsPage /></ErrorBoundary>} />
               <Route path="tenants/new" element={<ErrorBoundary><TenantFormPage /></ErrorBoundary>} />
               <Route path="tenants/:id" element={<ErrorBoundary><TenantDetailPage /></ErrorBoundary>} />

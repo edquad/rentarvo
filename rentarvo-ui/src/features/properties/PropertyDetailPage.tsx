@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { formatMoney } from '../../lib/format';
 import { toast } from '../../components/Toaster';
-import { ChevronLeft, Plus, Pencil, Trash2, Home } from 'lucide-react';
+import { ChevronLeft, Plus, Pencil, Trash2, Home, Info } from 'lucide-react';
 import { UnitFormModal } from '../units/UnitFormModal';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { AuditLogPanel } from '../../components/AuditLogPanel';
@@ -59,6 +59,13 @@ export function PropertyDetailPage() {
           <ChevronLeft size={16} /> Properties
         </button>
         <div className="flex gap-2">
+          <button
+            onClick={() => navigate(`/properties/${id}/info`)}
+            className="p-2 text-gray-400 hover:text-brand-600"
+            title="Property Info"
+          >
+            <Info size={16} />
+          </button>
           <button
             onClick={() => navigate(`/properties/${id}/edit`)}
             className="p-2 text-gray-400 hover:text-brand-600"

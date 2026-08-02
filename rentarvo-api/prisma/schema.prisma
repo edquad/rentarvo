@@ -175,9 +175,26 @@ model Property {
   documents            Document[]
   contactPropertyLinks ContactPropertyLink[]
   propertyAnalyses     PropertyAnalysis[]
+  infoItems            PropertyInfoItem[]
 
   @@index([entityId])
   @@map("properties")
+}
+
+model PropertyInfoItem {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  section    String
+  label      String
+  value      String
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, section])
+  @@map("property_info_items")
 }
 
 model Unit {

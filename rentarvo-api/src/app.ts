@@ -22,6 +22,7 @@ import { periodLocksRouter } from './modules/period-locks/period-locks.routes.js
 import { lateFeesRouter } from './modules/late-fees/late-fees.routes.js';
 import { reportsRouter } from './modules/reports/reports.routes.js';
 import { chatbotRouter } from './modules/chatbot/chatbot.routes.js';
+import { propertyInfoRouter } from './modules/properties/property-info.routes.js';
 
 export const app = express();
 
@@ -132,6 +133,7 @@ app.use('/api/v1/period-locks', periodLocksRouter);
 app.use('/api/v1/late-fees', lateFeesRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/chatbot', chatbotRouter);
+app.use('/api/v1/properties/:id/info', propertyInfoRouter);
 
 // Error handler
 app.use(errorHandler);
